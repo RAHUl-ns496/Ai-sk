@@ -6,7 +6,8 @@ COPY ./requirements.txt /code/requirements.txt
 
 # Install dependencies
 # Using --no-cache-dir to keep the image small
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+# Using --break-system-packages to verify we can install global packages in this container
+RUN pip install --no-cache-dir --upgrade --break-system-packages -r /code/requirements.txt
 
 # Copy the current directory contents into the container at /code
 COPY . /code
