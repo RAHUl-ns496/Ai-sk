@@ -1,0 +1,385 @@
+import React, { useRef, useState, useEffect } from "react";
+import { getDoctors } from "../services/api";
+
+// --- ORIGINAL GLOW COLOR PALETTE ---
+const ORIGINAL_COLORS = {
+    DARK_BG: '#0A192F', CARD_BG: '#112240', ACCENT_TEAL: '#64FFDA', ACCENT_GOLD: '#FFD700', 
+    BORDER: '#334155', TEXT_LIGHT: '#E6F1FF', TEXT_MUTED: '#94a3b8', 
+    RISK_HIGH: '#FF6347', RISK_MED: '#FFD700', RISK_LOW: '#10b981',
+};
+
+// 🎨 ENHANCED AESTHETIC STYLES (Reverted to Original Glow Theme)
+const UI = {
+    // ... (UI styles defined previously, omitted for brevity) ...
+    page: { background: `linear-gradient(135deg, ${ORIGINAL_COLORS.DARK_BG} 0%, #0F1D38 100%)`, minHeight: "100vh", padding: "30px 15px", color: ORIGINAL_COLORS.TEXT_LIGHT, fontFamily: "Inter, sans-serif", },
+    title: { fontSize: "1.8rem", fontWeight: 700, color: ORIGINAL_COLORS.ACCENT_TEAL, borderBottom: `2px solid ${ORIGINAL_COLORS.ACCENT_TEAL}`, paddingBottom: "10px", marginBottom: "25px", textAlign: "center", textShadow: `0 0 8px ${ORIGINAL_COLORS.ACCENT_TEAL}60`, },
+    grid: { display: "flex", flexDirection: "column", gap: 30, alignItems: "stretch", },
+    cardBase: { background: ORIGINAL_COLORS.CARD_BG, padding: 20, borderRadius: 12, boxShadow: "0 8px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(100, 255, 218, 0.2)", height: "auto", transition: 'all 0.3s ease', },
+    cardLeft: { border: `1px solid ${ORIGINAL_COLORS.BORDER}`, boxShadow: `0 0 10px ${ORIGINAL_COLORS.ACCENT_TEAL}40`, },
+    cardRight: { border: `1px solid ${ORIGINAL_COLORS.BORDER}`, boxShadow: `0 0 10px ${ORIGINAL_COLORS.ACCENT_GOLD}40`, },
+    input: { width: "100%", padding: 12, marginBottom: 20, borderRadius: 8, border: `2px solid ${ORIGINAL_COLORS.BORDER}`, background: ORIGINAL_COLORS.DARK_BG, color: ORIGINAL_COLORS.TEXT_LIGHT, fontSize: "1rem", transition: "border-color 0.3s ease, box-shadow 0.3s ease", },
+    preview: { width: "100%", borderRadius: 10, marginTop: 15, border: `2px solid ${ORIGINAL_COLORS.ACCENT_TEAL}`, aspectRatio: "4/3", objectFit: "cover", boxShadow: `0 0 10px ${ORIGINAL_COLORS.ACCENT_TEAL}80`, },
+    resultCard: { background: ORIGINAL_COLORS.DARK_BG, padding: 15, marginTop: 15, borderRadius: 10, borderLeft: `3px solid ${ORIGINAL_COLORS.ACCENT_GOLD}`, boxShadow: `0 0 8px ${ORIGINAL_COLORS.ACCENT_GOLD}40`, color: ORIGINAL_COLORS.TEXT_LIGHT, },
+    doctorCard: { background: ORIGINAL_COLORS.DARK_BG, padding: "12px", borderRadius: "10px", border: `1px solid ${ORIGINAL_COLORS.ACCENT_TEAL}`, boxShadow: `0 0 5px ${ORIGINAL_COLORS.ACCENT_TEAL}60`, color: ORIGINAL_COLORS.TEXT_LIGHT, },
+    fileInputLabel: { display: 'block', padding: '12px', backgroundColor: ORIGINAL_COLORS.BORDER, color: ORIGINAL_COLORS.TEXT_LIGHT, borderRadius: '8px', cursor: 'pointer', textAlign: 'center', marginBottom: '20px', transition: 'background-color 0.3s ease, color 0.3s ease', }
+};
+
+// --- ENHANCED RISK SPEEDOMETER COMPONENT ---
+function RiskSpeedometer({ confidence }) {
+    const risk = 100 - confidence; 
+    const rotation = (risk / 100) * 180;
+
+    let needleColor;
+    let riskLabel;
+    
+    if (risk > 70) {
+        needleColor = ORIGINAL_COLORS.RISK_HIGH; riskLabel = "HIGH RISK";
+    } else if (risk > 30) {
+        needleColor = ORIGINAL_COLORS.RISK_MED; riskLabel = "MODERATE RISK";
+    } else {
+        needleColor = ORIGINAL_COLORS.RISK_LOW; riskLabel = "LOW RISK";
+    }
+
+    const gaugeStyle = { width: '200px', height: '100px', margin: '20px auto 10px auto', borderRadius: '100px 100px 0 0 / 100px 100px 0 0', background: `linear-gradient(to right, ${ORIGINAL_COLORS.RISK_LOW} 0%, ${ORIGINAL_COLORS.RISK_LOW} 30%, ${ORIGINAL_COLORS.RISK_MED} 30%, ${ORIGINAL_COLORS.RISK_MED} 70%, ${ORIGINAL_COLORS.RISK_HIGH} 70%, ${ORIGINAL_COLORS.RISK_HIGH} 100%)`, overflow: 'hidden', position: 'relative', border: `3px solid ${ORIGINAL_COLORS.ACCENT_TEAL}`, boxShadow: `0 0 15px ${ORIGINAL_COLORS.ACCENT_TEAL}30`, };
+    const needleStyle = { position: 'absolute', top: '100px', left: '50%', width: '4px', height: '95px', backgroundColor: needleColor, borderRadius: '4px', transformOrigin: 'top center', transform: `rotate(${rotation - 90}deg)`, transition: 'transform 1s cubic-bezier(0.25, 0.8, 0.25, 1)', boxShadow: `0 0 10px ${needleColor}AA`, zIndex: 10, };
+
+    return (
+        <div style={{ textAlign: 'center', marginTop: '15px' }}>
+            <h4 style={{ color: needleColor, textShadow: `0 0 5px ${needleColor}80`, fontSize: '1.2rem', marginBottom: '5px' }}>{riskLabel}</h4>
+            <div style={gaugeStyle}>
+                <div style={needleStyle}></div>
+                <div style={{ 
+                    position: 'absolute', bottom: '0', left: '50%', transform: 'translate(-50%, 50%)', 
+                    width: '18px', height: '18px', background: ORIGINAL_COLORS.DARK_BG, borderRadius: '50%', 
+                    border: `3px solid ${ORIGINAL_COLORS.ACCENT_GOLD}`, boxShadow: `0 0 8px ${ORIGINAL_COLORS.ACCENT_GOLD}80`, zIndex: 11,
+                }}></div>
+            </div>
+            <p style={{ color: ORIGINAL_COLORS.ACCENT_GOLD, fontWeight: 'bold', fontSize: '1.1rem' }}>Risk Score: {risk.toFixed(1)}/100</p>
+            <p style={{ color: ORIGINAL_COLORS.ACCENT_TEAL, fontSize: '0.9rem' }}>AI Confidence: {confidence.toFixed(1)}%</p>
+        </div>
+    );
+}
+
+// --- MAIN COMPONENT ---
+export default function Predict() {
+    const fileRef = useRef(null);
+
+    const [fileInput, setFileInput] = useState(null);
+    const [previewURL, setPreviewURL] = useState(null);
+    const [patientName, setPatientName] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState(null);
+    const [errorMsg, setErrorMsg] = useState(null);
+    const [doctors, setDoctors] = useState([]);
+    
+    // NEW STATE: Store the disease configuration fetched from the backend
+    const [diseaseConfig, setDiseaseConfig] = useState({});
+
+    const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+    // NEW EFFECT: Fetch DISEASE_INFO from the new backend endpoint
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                // Fetch the entire DISEASE_INFO map from FastAPI
+                const res = await fetch(`${API_BASE}/config/disease-info`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setDiseaseConfig(data);
+                } else {
+                    console.error("Failed to fetch disease configuration.");
+                }
+            } catch (e) {
+                console.error("Network error fetching disease config:", e);
+            }
+        };
+        fetchConfig();
+    }, [API_BASE]);
+
+
+    const onFileChange = (e) => {
+        if (e.target.files[0]) {
+            setFileInput(e.target.files[0]);
+            setResult(null);
+            setDoctors([]);
+        }
+    };
+
+    useEffect(() => {
+        if (fileInput) {
+            const objUrl = URL.createObjectURL(fileInput);
+            setPreviewURL(objUrl);
+            return () => URL.revokeObjectURL(objUrl);
+        } else {
+            setPreviewURL(null);
+        }
+    }, [fileInput]);
+
+    const sendForPrediction = async () => {
+        setErrorMsg(null);
+        setResult(null);
+        setDoctors([]);
+
+        if (!patientName.trim()) {
+            setErrorMsg("⚠ Please enter patient name");
+            return;
+        }
+        if (!fileInput) {
+            setErrorMsg("⚠ Please select an image");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const form = new FormData();
+            form.append("file", fileInput, fileInput.name || "lesion.jpg");
+            form.append("patient_name", patientName);
+
+            const res = await fetch(`${API_BASE}/predict`, {
+                method: "POST",
+                body: form,
+            });
+
+            if (!res.ok) {
+                throw new Error("Server Error: " + res.status);
+            }
+
+            const data = await res.json();
+            
+            // The backend /predict now returns the FULL name and info (class, description, recommendation).
+            // We verify the existence of the result using the received class name.
+            const predictedClassName = data.class; 
+
+            if (!predictedClassName) {
+                 throw new Error("Prediction returned no class.");
+            }
+
+            setResult({
+                class: data.class, // Already the full name from the backend
+                confidence: data.confidence || 0,
+                description: data.description || "Description unavailable.",
+                recommendation: data.recommendation || "Recommendation unavailable.",
+                heatmapBase64: data.heatmap_base64 || null,
+            });
+
+            // ✅ Doctors feature: Use the full disease name (data.class)
+            try {
+                // This fetches doctors based on the full name string, 
+                // matching the key in the Python DOCTORS dictionary.
+                const docRes = await getDoctors(data.class); 
+                if (docRes?.data?.doctors) {
+                    setDoctors(docRes.data.doctors);
+                }
+            } catch (err) {
+                console.log("Doctor fetch error:", err);
+            }
+        } catch (e) {
+            console.error(e);
+            setErrorMsg("❌ Prediction failed. Check FastAPI server and configurations.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={UI.page}>
+            <h1 style={UI.title}>🧠 AI Dermatological Analyzer</h1>
+
+            <div style={UI.grid}>
+                {/* ========== SECTION 1: INPUTS & UPLOAD ========== */}
+                <div style={{ ...UI.cardBase, ...UI.cardLeft }}>
+                    <h2 style={{ color: ORIGINAL_COLORS.ACCENT_TEAL, marginBottom: 15, fontSize: '1.2rem', textShadow: `0 0 5px ${ORIGINAL_COLORS.ACCENT_TEAL}60` }}>📁 Patient Details & Image</h2>
+
+                    <input
+                        placeholder="Patient Name"
+                        value={patientName}
+                        onChange={(e) => setPatientName(e.target.value)}
+                        style={UI.input}
+                    />
+
+                    <label htmlFor="file-upload" style={{ ...UI.fileInputLabel, ...{
+                        border: `1px solid ${ORIGINAL_COLORS.ACCENT_TEAL}`, 
+                        boxShadow: `0 0 5px ${ORIGINAL_COLORS.ACCENT_TEAL}50`,
+                        color: ORIGINAL_COLORS.ACCENT_TEAL,
+                        background: ORIGINAL_COLORS.BORDER
+                    } }}>
+                        {fileInput ? `✅ ${fileInput.name}` : "📂 Upload Lesion Image"}
+                    </label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onFileChange}
+                        style={{ display: "none" }}
+                        id="file-upload"
+                        ref={fileRef}
+                    />
+
+                    <div style={UI.btnGroup}>
+                        <button
+                            onClick={() => {
+                                setFileInput(null);
+                                setPreviewURL(null);
+                                setResult(null);
+                                setDoctors([]);
+                                setPatientName("");
+                                setErrorMsg(null);
+                                if (fileRef.current) fileRef.current.value = ""; 
+                            }}
+                            className="btn-red-custom"
+                            style={{ 
+                                width: '100%', 
+                                background: ORIGINAL_COLORS.RISK_HIGH, 
+                                boxShadow: `0 0 5px ${ORIGINAL_COLORS.RISK_HIGH}60`,
+                                color: ORIGINAL_COLORS.TEXT_LIGHT,
+                            }}
+                        >
+                            🔄 Reset All
+                        </button>
+                    </div>
+                </div>
+
+                {/* ========== SECTION 2: PREVIEW & RESULT ========== */}
+                <div style={{ ...UI.cardBase, ...UI.cardRight }}>
+                    <h2 style={{ color: ORIGINAL_COLORS.ACCENT_GOLD, marginBottom: 15, fontSize: '1.2rem', textShadow: `0 0 5px ${ORIGINAL_COLORS.ACCENT_GOLD}60` }}>🔬 Analysis & Results</h2>
+
+                    <button
+                        onClick={sendForPrediction}
+                        disabled={loading || !patientName.trim() || !fileInput}
+                        className="btn-main-custom"
+                        style={{ 
+                            background: ORIGINAL_COLORS.ACCENT_GOLD, 
+                            color: ORIGINAL_COLORS.DARK_BG,
+                            boxShadow: `0 0 10px ${ORIGINAL_COLORS.ACCENT_GOLD}80`,
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        {loading ? "✨ Analyzing Data Stream..." : "🚀 Initiate AI Prediction"}
+                    </button>
+
+                    {/* Error Message */}
+                    {errorMsg && <p style={{ color: ORIGINAL_COLORS.RISK_HIGH, padding: "10px", border: `1px dashed ${ORIGINAL_COLORS.RISK_HIGH}`, borderRadius: "8px", marginTop: "15px", fontSize: '0.9rem', textShadow: `0 0 3px ${ORIGINAL_COLORS.RISK_HIGH}50` }}>{errorMsg}</p>}
+
+                    {/* Preview Image */}
+                    {previewURL && (
+                        <>
+                            <img src={previewURL} alt="Image Preview" style={UI.preview} />
+                            <p style={{ textAlign: 'center', color: ORIGINAL_COLORS.TEXT_MUTED, fontSize: '0.8rem', marginTop: '8px' }}>Input Scan</p>
+                        </>
+                    )}
+
+
+                    {/* Prediction Result */}
+                    {result && (
+                        <>
+                            <div style={UI.resultCard}>
+                                <h3 style={{ color: ORIGINAL_COLORS.ACCENT_GOLD, fontSize: '1.2rem', marginBottom: '8px' }}>
+                                    ✅ RESULT: {result.class}
+                                </h3>
+                                {/* Risk Speedometer Integrated Here */}
+                                <RiskSpeedometer confidence={result.confidence} /> 
+
+                                <p style={{ marginTop: '12px', color: ORIGINAL_COLORS.TEXT_LIGHT, fontSize: '0.9rem' }}>
+                                    {result.description}
+                                </p>
+                                <p style={{ marginTop: '12px', color: ORIGINAL_COLORS.ACCENT_TEAL, fontWeight: 'bold', fontSize: '1rem' }}>
+                                    PROTOCOL: {result.recommendation}
+                                </p>
+                            </div>
+
+                            {/* Heatmap Image */}
+                            {result.heatmapBase64 && (
+                                <>
+                                    <img
+                                        src={`data:image/jpeg;base64,${result.heatmapBase64}`}
+                                        alt="AI Heatmap"
+                                        style={{ ...UI.preview, border: `2px solid ${ORIGINAL_COLORS.ACCENT_GOLD}` }}
+                                    />
+                                    <p style={{ textAlign: 'center', color: ORIGINAL_COLORS.TEXT_MUTED, fontSize: '0.8rem', marginTop: '8px' }}>AI Attention Map (Grad-CAM) </p>
+                                </>
+                            )}
+                        </>
+                    )}
+
+                    {/* ✅ DOCTOR LIST */}
+                    {doctors.length > 0 && (
+                        <div style={{ marginTop: 30 }}>
+                            <h2 style={{ color: ORIGINAL_COLORS.ACCENT_GOLD, borderBottom: `1px solid ${ORIGINAL_COLORS.BORDER}`, paddingBottom: '8px', fontSize: '1.2rem', textShadow: `0 0 5px ${ORIGINAL_COLORS.ACCENT_GOLD}60` }}>👨‍⚕ Suggested Specialists</h2>
+
+                            <div
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr", 
+                                    gap: "15px",
+                                    marginTop: "15px",
+                                }}
+                            >
+                                {doctors.map((doc, i) => (
+                                    <div key={i} style={UI.doctorCard}>
+                                        <h3 style={{ color: ORIGINAL_COLORS.ACCENT_TEAL, marginBottom: '5px', fontSize: '1rem' }}>{doc.name}</h3>
+                                        <p style={{ fontSize: '0.9rem', color: ORIGINAL_COLORS.TEXT_LIGHT }}><b>Specialist:</b> {doc.specialist}</p>
+                                        <p style={{ fontSize: '0.9rem', color: ORIGINAL_COLORS.TEXT_LIGHT }}><b>Hospital:</b> {doc.hospital}</p>
+                                        <p style={{ fontSize: '0.9rem', color: ORIGINAL_COLORS.TEXT_LIGHT }}><b>City:</b> {doc.city}</p>
+                                        <p style={{ fontSize: '0.9rem' }}><b>Contact:</b> <a href={`tel:${doc.contact}`} style={{ color: ORIGINAL_COLORS.ACCENT_TEAL, textDecoration: 'none' }}>{doc.contact}</a></p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Global Button Styles with Glow Colors */}
+            <style>{`
+                .btn-main-custom {
+                    background: ${ORIGINAL_COLORS.ACCENT_GOLD}; 
+                    color: ${ORIGINAL_COLORS.DARK_BG}; 
+                    padding: 12px; 
+                    border: none; 
+                    border-radius: 6px; 
+                    font-weight: bold; 
+                    font-size: 1rem; 
+                    width: 100%; 
+                    cursor: pointer; 
+                    transition: transform 0.2s, opacity 0.2s;
+                    box-shadow: 0 0 15px ${ORIGINAL_COLORS.ACCENT_GOLD}80;
+                }
+                .btn-main-custom:hover:not(:disabled) {
+                    transform: translateY(-2px); 
+                    opacity: 0.95;
+                    box-shadow: 0 0 20px ${ORIGINAL_COLORS.ACCENT_GOLD};
+                }
+                .btn-main-custom:disabled {
+                    background: ${ORIGINAL_COLORS.BORDER}; 
+                    cursor: not-allowed; 
+                    opacity: 0.6; 
+                    color: ${ORIGINAL_COLORS.TEXT_MUTED};
+                    box-shadow: none;
+                }
+                .btn-red-custom { 
+                    background: ${ORIGINAL_COLORS.RISK_HIGH}; 
+                    color: ${ORIGINAL_COLORS.TEXT_LIGHT}; 
+                    padding: 10px 15px; 
+                    border: none; 
+                    border-radius: 6px; 
+                    font-weight: 800; 
+                    cursor: pointer; 
+                    transition: all 0.2s; 
+                    font-size: 0.95rem;
+                    box-shadow: 0 0 8px ${ORIGINAL_COLORS.RISK_HIGH}60;
+                }
+                .btn-red-custom:hover { 
+                    background: #dc2626; 
+                    transform: scale(1.02);
+                }
+                
+                /* General input focus for the page */
+                input:focus {
+                    border-color: ${ORIGINAL_COLORS.ACCENT_TEAL} !important;
+                    box-shadow: 0 0 8px ${ORIGINAL_COLORS.ACCENT_TEAL}80;
+                    outline: none;
+                }
+            `}</style>
+        </div>
+    );
+}
