@@ -19,4 +19,4 @@ RUN mkdir -p /code/cache && chmod -R 777 /code/cache
 EXPOSE 7860
 
 # Command to run the app
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+CMD ["python", "main.py"]

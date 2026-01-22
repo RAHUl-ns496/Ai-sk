@@ -681,5 +681,7 @@ def dashboard():
 
 if __name__ == "__main__":
     import uvicorn
-    # Use 0.0.0.0 to allow access from other devices on the network (like the mobile app)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Use PORT env variable provided by Railway, default to 7860
+    port = int(os.environ.get("PORT", 7860))
+    # Use 0.0.0.0 to allow access from other devices/containers
+    uvicorn.run(app, host="0.0.0.0", port=port)
